@@ -1,0 +1,292 @@
+// Receiver ESP32 - LiComm with Dynamic Speed
+#define recvPin 32
+
+// === Delay (in milliseconds) ===
+const int bitDelay = 10;
+
+int threshold = 0;
+int laserOffLevel = 0;
+int laserOnLevel = 0;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(recvPin, INPUT);
+  calibrateThresholdAuto();
+}
+
+void loop() {
+  if (detectStartSignal()) {
+    String msg = receiveData();
+    Serial.print("Received: ");
+    Serial.println(msg);
+  }
+}
+
+void calibrateThresholdAuto() {
+  int margin = 200;
+  int x = 0;
+  laserOffLevel = analogRead(recvPin);
+
+  while (true) {
+    if (x == 100) {
+      Serial.println("Waiting for laser signal to calibrate...");
+      x = 0;
+    }
+    int val = analogRead(recvPin);
+    if (val > laserOffLevel + margin) {
+      laserOnLevel = val;
+      break;
+    }
+    x++;
+    delay(10);
+  }
+  threshold = (laserOnLevel + laserOffLevel) / 2;
+  Serial.print("laserOnLevel "); 
+  Serial.println(laserOnLevel);
+  Serial.print("laserOffLevel "); 
+  Serial.println(laserOffLevel);
+  Serial.println("✅ Calibration Complete");
+}
+
+bool detectStartSignal() {
+  int highCount = 0;
+  int lowCount = 0;
+
+  while (analogRead(recvPin) > threshold) {
+    highCount++;
+    delay(bitDelay / 2);  // More precise
+    if (highCount >= 4) break;
+  }
+  if (highCount < 4) return false;
+
+  while (analogRead(recvPin) <= threshold) {
+    lowCount++;
+    delay(bitDelay / 2);
+    if (lowCount >= 2) break;
+  }
+
+  return (lowCount >= 2);
+}
+
+char receiveChar() {
+  char value = 0;
+  delay(bitDelay / 2); // Sync to middle of bit 0
+
+  for (int i = 0; i < 8; i++) {
+    int val = analogRead(recvPin);
+    if (val > threshold) {
+      value |= (1 << i);
+    }
+    delay(bitDelay);
+  }
+
+  return value;
+}
+
+//String receiveData() {
+//  String msg = "";
+//  char ch;
+//  while (true) {
+//    ch = receiveChar();
+//    if (ch == '\n') break;
+//    msg += ch;
+//  }
+//  return msg;
+//}
+
+String receiveData() {
+  String msg = "";
+  char ch;
+  int maxChars = 50;  // limit to 50 characters max per message
+
+  for (int i = 0; i < maxChars; i++) {
+    ch = receiveChar();
+    if (ch == '\n') break;  // terminator found
+    msg += ch;
+  }
+
+  return msg;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Receiver ESP32 - LiComm with Dynamic Speed
+#define recvPin 32
+
+// === Delay (in milliseconds) ===
+const int bitDelay = 10;
+
+int threshold = 0;
+int laserOffLevel = 0;
+int laserOnLevel = 0;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(recvPin, INPUT);
+  calibrateThresholdAuto();
+}
+
+void loop() {
+  if (detectStartSignal()) {
+    Serial.print("Received: ");
+    receiveData();
+    Serial.println("");
+  }
+}
+
+void calibrateThresholdAuto() {
+  int margin = 200;
+  int x = 0;
+  laserOffLevel = analogRead(recvPin);
+
+  while (true) {
+    if (x == 100) {
+      Serial.println("Waiting for laser signal to calibrate...");
+      x = 0;
+    }
+    int val = analogRead(recvPin);
+    if (val > laserOffLevel + margin) {
+      laserOnLevel = val;
+      break;
+    }
+    x++;
+    delay(10);
+  }
+  threshold = (laserOnLevel + laserOffLevel) / 2;
+  Serial.print("laserOnLevel "); 
+  Serial.println(laserOnLevel);
+  Serial.print("laserOffLevel "); 
+  Serial.println(laserOffLevel);
+  Serial.println("✅ Calibration Complete");
+}
+
+bool detectStartSignal() {
+  int highCount = 0;
+  int lowCount = 0;
+
+  while (analogRead(recvPin) > threshold) {
+    highCount++;
+    delay(bitDelay / 2);  // More precise
+    if (highCount >= 4) break;
+  }
+  if (highCount < 4) return false;
+
+  while (analogRead(recvPin) <= threshold) {
+    lowCount++;
+    delay(bitDelay / 2);
+    if (lowCount >= 2) break;
+  }
+
+  return (lowCount >= 2);
+}
+
+char receiveChar() {
+  char value = 0;
+  delay(bitDelay / 2); // Sync to middle of bit 0
+
+  for (int i = 0; i < 8; i++) {
+    int val = analogRead(recvPin);
+    if (val > threshold) {
+      value |= (1 << i);
+    }
+    delay(bitDelay);
+  }
+
+  return value;
+}
+
+void receiveData() {
+  char ch;
+  int maxChars = 50;  // limit to 50 characters max per message
+  for (int i = 0; i < maxChars; i++) {
+    ch = receiveChar();
+    if (ch == '\n') break;  // terminator found
+    Serial.print(ch);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Transmitter ESP32 - LiComm with Dynamic Speed + Bluetooth Input
+#include "BluetoothSerial.h"
+
+#define laserPin 2
+const int bitDelay = 10;  // Bit duration in milliseconds
+
+BluetoothSerial BTSerial;
+String messageToSend = "";
+
+void setup() {
+  Serial.begin(9600);       // Debug Serial Monitor
+  BTSerial.begin("ESP32-LiComm");  // Bluetooth name
+
+  pinMode(laserPin, OUTPUT);
+  digitalWrite(laserPin, LOW);
+
+  Serial.println("✅ Bluetooth ready. Pair and send data.");
+}
+
+void loop() {
+  if (BTSerial.available()) {
+    messageToSend = BTSerial.readStringUntil('\n');  // Read until newline
+    messageToSend += "\n";  // Ensure terminator
+
+    Serial.print("🔵 Received over Bluetooth: ");
+    Serial.println(messageToSend);
+
+    sendStartSignal();
+    sendData(messageToSend);
+    Serial.println("📤 Message sent over Li-Fi!\n");
+  }
+}
+
+void sendStartSignal() {
+  digitalWrite(laserPin, HIGH);
+  delay(bitDelay * 2);  // Laser ON
+  digitalWrite(laserPin, LOW);
+  delay(bitDelay);      // Laser OFF
+}
+
+void sendData(String data) {
+  for (char ch : data) {
+    for (int i = 0; i < 8; i++) {
+      bool bit = (ch >> i) & 1;
+      digitalWrite(laserPin, bit);
+      delay(bitDelay);  // Bit duration
+    }
+    digitalWrite(laserPin, LOW); // Off between characters
+    delay(bitDelay / 2);         // Optional gap
+  }
+}
+
